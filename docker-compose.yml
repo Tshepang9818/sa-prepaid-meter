@@ -27,6 +27,11 @@ services:
     ports:
       - "8014:8000"
     restart: on-failure
-
+  simulator:
+    build: ./simulator
+    environment:
+      - API_URL=http://app:8000
+    depends_on: [app]
+    restart: on-failure
 volumes:
   pgdata:
