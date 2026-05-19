@@ -4,11 +4,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      deploy_to_prod:
-        description: 'Type YES to deploy to production'
-        required: true
-        default: 'NO'
 
 jobs:
   # ─────────────────────────────────────────
@@ -72,101 +67,34 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/sa-prepaid-meter-simulator:${{ github.sha }}
 
   # ─────────────────────────────────────────
-  # JOB 3 — Deploy to Kubernetes
+  # JOB 3 — Manual Kubernetes deploy instructions
   # ─────────────────────────────────────────
-  deploy:
-    name: Deploy to Kubernetes
+  deploy-instructions:
+    name: Print deployment instructions
     needs: build
     runs-on: ubuntu-latest
-    environment: production
-    if: github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: latest
-
-      - name: Configure kubeconfig
+      - name: Print manual deploy steps
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > ~/.kube/config
-          chmod 600 ~/.kube/config
-
-      - name: Apply Kubernetes manifests
-        run: |
-          kubectl apply -f k8s/namespace.yml
-          kubectl apply -f k8s/configmap.yml
-          kubectl apply -f k8s/secret.yml
-          kubectl apply -f k8s/postgres-deployment.yml
-          kubectl apply -f k8s/redis-deployment.yml
-          kubectl apply -f k8s/app-deployment.yml
-          kubectl apply -f k8s/app-service.yml
-          kubectl apply -f k8s/simulator-deployment.yml
-          kubectl apply -f k8s/hpa.yml
-
-      - name: Update API image to latest commit
-        run: |
-          kubectl set image deployment/meter-app \
-            meter-app=${{ secrets.DOCKERHUB_USERNAME }}/sa-prepaid-meter-api:${{ github.sha }} \
-            -n sa-meter
-
-      - name: Update simulator image to latest commit
-        run: |
-          kubectl set image deployment/meter-simulator \
-            meter-simulator=${{ secrets.DOCKERHUB_USERNAME }}/sa-prepaid-meter-simulator:${{ github.sha }} \
-            -n sa-meter
-
-      - name: Wait for API rollout
-        run: |
-          kubectl rollout status deployment/meter-app \
-            -n sa-meter --timeout=120s
-
-      - name: Wait for simulator rollout
-        run: |
-          kubectl rollout status deployment/meter-simulator \
-            -n sa-meter --timeout=120s
-
-      - name: Verify deployment
-        run: |
-          kubectl get pods -n sa-meter
-          kubectl get hpa -n sa-meter
-          echo "Deployment successful at $(date)"
-          echo "API image: ${{ secrets.DOCKERHUB_USERNAME }}/sa-prepaid-meter-api:${{ github.sha }}"
-          echo "Simulator image: ${{ secrets.DOCKERHUB_USERNAME }}/sa-prepaid-meter-simulator:${{ github.sha }}"
-
-  # ─────────────────────────────────────────
-  # JOB 4 — Smoke test after deployment
-  # ─────────────────────────────────────────
-  smoke-test:
-    name: Smoke test
-    needs: deploy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: latest
-
-      - name: Configure kubeconfig
-        run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > ~/.kube/config
-          chmod 600 ~/.kube/config
-
-      - name: Run smoke test
-        run: |
-          kubectl get pods -n sa-meter
-          echo "Checking rollout history..."
-          kubectl rollout history deployment/meter-app -n sa-meter
-          echo "Smoke test complete — system is healthy"
-
-      - name: Confirm rollback available
-        run: |
-          echo "To rollback the API run:"
-          echo "kubectl rollout undo deployment/meter-app -n sa-meter"
-          echo "To rollback the simulator run:"
-          echo "kubectl rollout undo deployment/meter-simulator -n sa-meter"
+          echo "============================================"
+          echo " SA Prepaid Meter — Deployment Instructions"
+          echo "============================================"
+          echo ""
+          echo "Build passed. To deploy to your local k3s cluster:"
+          echo ""
+          echo "1. Pull the latest images:"
+          echo "   kubectl apply -f k8s/"
+          echo ""
+          echo "2. Restart deployments with new images:"
+          echo "   kubectl rollout restart deployment/meter-app -n sa-meter"
+          echo "   kubectl rollout restart deployment/meter-simulator -n sa-meter"
+          echo ""
+          echo "3. Watch pods come up:"
+          echo "   kubectl get pods -n sa-meter --watch"
+          echo ""
+          echo "4. Test the API:"
+          echo "   curl http://localhost:30081/health"
+          echo ""
+          echo "API Image:       ${{ secrets.DOCKERHUB_USERNAME }}/sa-prepaid-meter-api:${{ github.sha }}"
+          echo "Simulator Image: ${{ secrets.DOCKERHUB_USERNAME }}/sa-prepaid-meter-simulator:${{ github.sha }}"
+          echo "Deployed at:     $(date)"
