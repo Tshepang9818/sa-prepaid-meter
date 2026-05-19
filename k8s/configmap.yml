@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: meter-config
+  namespace: sa-meter
+data:
+  POSTGRES_DB: meterdb
+  REDIS_URL: redis://redis-service:6379
+  DATABASE_URL: postgresql://meteruser:meterpass123@postgres-service/meterdb
+  API_URL: http://app-service:8000
+  AT_USERNAME: sandbox
+  AT_SENDER_ID: METER

@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meter-app
+  namespace: sa-meter
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: meter-app
+  template:
+    metadata:
+      labels:
+        app: meter-app
+    spec:
+      containers:
+        - name: meter-app
+          image: tshepang981/sa-prepaid-meter-api:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: meter-config
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: meter-config
+                  key: REDIS_URL
+            - name: AT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: meter-secret
+                  key: AT_API_KEY
+            - name: AT_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: meter-config
+                  key: AT_USERNAME
+            - name: AT_SENDER_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: meter-config
+                  key: AT_SENDER_ID
+            - name: ALERT_PHONE
+              valueFrom:
+                secretKeyRef:
+                  name: meter-secret
+                  key: ALERT_PHONE
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"

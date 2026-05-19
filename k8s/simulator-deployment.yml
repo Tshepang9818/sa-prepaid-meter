@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meter-simulator
+  namespace: sa-meter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: meter-simulator
+  template:
+    metadata:
+      labels:
+        app: meter-simulator
+    spec:
+      containers:
+        - name: meter-simulator
+          image: tshepang981/sa-prepaid-meter-simulator:latest
+          env:
+            - name: API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: meter-config
+                  key: API_URL
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
